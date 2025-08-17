@@ -363,15 +363,18 @@ if __name__ == '__main__':
         print("   Make sure control.py is in the same directory")
         sys.exit(1)
     
+    # Get port from environment variable (for Railway/Heroku) or use default
+    port = int(os.environ.get('PORT', 5000))
+    
     print("\n🌐 Control interface available at:")
-    print("   Local: http://localhost:5000")
-    print("   Network: http://[your-ip]:5000")
+    print(f"   Local: http://localhost:{port}")
+    print(f"   Network: http://[your-ip]:{port}")
     print("\n📱 Phone 2 users access this page to connect")
     print("🎮 Phone 1 can then control Phone 2 through Telegram!")
     print("\n" + "=" * 50)
     
     try:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(host='0.0.0.0', port=port, debug=False)
     except KeyboardInterrupt:
         print("\n🛑 App stopped")
     except Exception as e:
